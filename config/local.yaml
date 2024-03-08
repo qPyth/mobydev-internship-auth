@@ -1,0 +1,7 @@
+storage_path: "./storage/auth.db"
+tokenTTL: 2h
+http:
+  host: "localhost"
+  port: 8080
+  read_timeout: 10s
+  write_timeout: 10s
