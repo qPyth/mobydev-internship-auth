@@ -39,6 +39,7 @@ var (
 	ErrInvalidName     = errors.New("invalid name")
 	ErrInvalidBDay     = errors.New("invalid birthdate or date format not in RFC3339")
 	ErrInvalidPhone    = errors.New("invalid phone number")
+	ErrBadReq          = errors.New("bad request")
 )
 
 type UserService interface {
@@ -52,7 +53,7 @@ func (h *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 	var req userSignUpReq
 	if err := h.bindData(r, &req); err != nil {
 		h.log.Error("failed to bind user sign up request: ", "error", err.Error())
-		h.error(w, http.StatusBadRequest, err)
+		h.error(w, http.StatusBadRequest, ErrBadReq)
 		return
 	}
 	if err := userSignUpReqValidation(req); err != nil {
@@ -83,7 +84,8 @@ func (h *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	var req userSignInReq
 	if err := h.bindData(r, &req); err != nil {
-		h.error(w, http.StatusBadRequest, err)
+		h.log.Error("failed to bind user sign in request: ", "error", err.Error())
+		h.error(w, http.StatusBadRequest, ErrBadReq)
 		return
 	}
 
@@ -104,7 +106,7 @@ func (h *Handler) UserProfileUpdate(w http.ResponseWriter, r *http.Request) {
 	var req domain.UserProfileUpdateReq
 	if err := h.bindData(r, &req); err != nil {
 		h.log.Error("failed to bind user profile update request: ", "error", err.Error())
-		h.error(w, http.StatusBadRequest, err)
+		h.error(w, http.StatusBadRequest, ErrBadReq)
 		return
 	}
 	err := updateProfileValidation(req)

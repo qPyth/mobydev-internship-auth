@@ -18,5 +18,5 @@ type UserProfileUpdateReq struct {
 	Name        *string    `json:"name"`
 	Email       *string    `json:"email"`
 	PhoneNumber *string    `json:"phone_number"`
-	BDay        *time.Time `json:"b_day"`
+	BDay        *time.Time `json:"b_day" format:"RFC3339"`
 }

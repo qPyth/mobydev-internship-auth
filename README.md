@@ -50,4 +50,4 @@ The application exposes the following endpoints:
 
 - `POST /user/signup`: Register a new user. Requires a JSON body with `email`, `password` and `pass_conf` fields.
 - `POST /user/signin`: Authenticate a user. Requires a JSON body with `email` and `password`. Returns a JWT token upon successful authentication.
-- `PUT /user/profile/update`: Update an existing user's profile. Requires a JWT token for authorization and a JSON body with fields you want to update.
+- `PUT /user/profile/update`: Update an existing user's profile. Requires a JWT token for authorization and a JSON body with fields you want to update. `b-day must be in RFC3339` format
