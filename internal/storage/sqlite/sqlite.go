@@ -64,8 +64,8 @@ func (s *Storage) CreateUser(ctx context.Context, email string, hashPass []byte)
 	_, err = stmt.ExecContext(ctx, email, string(hashPass), now, now)
 	if err != nil {
 		var sqliteErr sqlite3.Error
-		if errors.As(err, &sqliteErr) && errors.Is(sqliteErr, sqlite3.ErrConstraintUnique) {
-			return fmt.Errorf("%s: user with email %s already exists: %w", op, email, domain.ErrEmailExists)
+		if errors.As(err, &sqliteErr) && errors.Is(sqliteErr.ExtendedCode, sqlite3.ErrConstraintUnique) {
+			return domain.ErrEmailExists
 		}
 		return fmt.Errorf("%s: stmt.Exec: %w", op, err)
 	}
@@ -125,9 +125,12 @@ func (s *Storage) UpdateUser(ctx context.Context, update *domain.UserProfileUpda
 		args = append(args, *update.PhoneNumber)
 	}
 
+	queryBuilder.WriteString("updated_at = ?, ")
+	args = append(args, time.Now())
+
 	query := strings.TrimSuffix(queryBuilder.String(), ", ")
 
-	query += " WHERE id = ?"
+	query += "WHERE id = ?"
 	args = append(args, update.ID)
 
 	_, err = s.db.ExecContext(ctx, query, args...)

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	_ "github.com/golang-migrate/migrate/v4/database/sqlite"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/mattn/go-sqlite3"
@@ -12,6 +13,7 @@ import (
 	"github.com/qPyth/mobydev-internship-auth/pkg/auth"
 	"log/slog"
 	"os"
+	"time"
 )
 
 var jwtSecret = os.Getenv("JWT_SECRET")
@@ -20,7 +22,9 @@ func Run(cfg *config.Config) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	storage := sqlite.New(cfg.StoragePath)
+
 	tokenManager := auth.NewManager(jwtSecret, cfg.TokenTTL)
+
 	userService := services.NewUserService(storage, tokenManager)
 
 	h := http.NewHandler(logger, userService)
@@ -31,4 +35,10 @@ func Run(cfg *config.Config) {
 		logger.Error("failed to run server: ", "error", err.Error())
 	}
 
+	const timeout = 5 * time.Second
+	ctx, shutdown := context.WithTimeout(context.Background(), timeout)
+	defer shutdown()
+	if err := srv.Stop(ctx); err != nil {
+		logger.Error("failed to stop server: ", "error", err.Error())
+	}
 }

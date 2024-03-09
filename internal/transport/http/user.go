@@ -18,9 +18,9 @@ func (h *Handler) InitUserRoutes(r chi.Router) {
 }
 
 type userSignUpReq struct {
-	Email    string `json:"email" binding:"required, max=64"`
-	Password string `json:"password" binding:"required, min=8,max=64"`
-	PassConf string `json:"pass_conf" binding:"required, eqfield=Password"`
+	Email    string `json:"email" binding:"required"`
+	Password string `json:"password" binding:"required"`
+	PassConf string `json:"pass_conf" required:"true"`
 }
 
 type userSignInReq struct {
@@ -34,7 +34,11 @@ type SignInResp struct {
 
 var (
 	ErrInvalidEmail    = errors.New("invalid email")
-	ErrInvalidPassword = errors.New("invalid password")
+	ErrInvalidPassword = errors.New("invalid password len")
+	ErrPassConfirm     = errors.New("passwords do not match")
+	ErrInvalidName     = errors.New("invalid name")
+	ErrInvalidBDay     = errors.New("invalid birthdate or date format not in RFC3339")
+	ErrInvalidPhone    = errors.New("invalid phone number")
 )
 
 type UserService interface {
@@ -54,7 +58,7 @@ func (h *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := userSignUpReqValidation(req); err != nil {
 		h.log.Error("failed to validate user sign up request: ", "error", err.Error())
-		if errors.Is(err, ErrInvalidEmail) || errors.Is(err, ErrInvalidPassword) {
+		if errors.Is(err, ErrInvalidEmail) || errors.Is(err, ErrInvalidPassword) || errors.Is(err, ErrPassConfirm) {
 			h.error(w, http.StatusBadRequest, err)
 			return
 		}
@@ -107,7 +111,7 @@ func (h *Handler) UserProfileUpdate(w http.ResponseWriter, r *http.Request) {
 	err := updateProfileValidation(req)
 	if err != nil {
 		h.log.Error("failed to validate user profile update request: ", "error", err.Error())
-		if errors.Is(err, domain.ErrInvalidName) || errors.Is(err, domain.ErrInvalidBDay) || errors.Is(err, domain.ErrInvalidPhone) || errors.Is(err, ErrInvalidEmail) {
+		if errors.Is(err, ErrInvalidName) || errors.Is(err, ErrInvalidBDay) || errors.Is(err, ErrInvalidPhone) || errors.Is(err, ErrInvalidEmail) {
 			h.error(w, http.StatusBadRequest, err)
 			return
 		}
@@ -123,6 +127,10 @@ func (h *Handler) UserProfileUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 		h.error(w, http.StatusInternalServerError, internalSrvErrorMsg)
 		return
+	}
+	_, err = w.Write([]byte("ok"))
+	if err != nil {
+		h.log.Error("failed to write response: ", "error", err.Error())
 	}
 }
 
@@ -142,6 +150,8 @@ func userSignUpReqValidation(req userSignUpReq) error {
 		return ErrInvalidEmail
 	case !passValid:
 		return ErrInvalidPassword
+	case !validators.PasswordsMatch(req.Password, req.PassConf):
+		return ErrPassConfirm
 	}
 
 	return nil
@@ -150,7 +160,7 @@ func userSignUpReqValidation(req userSignUpReq) error {
 func updateProfileValidation(req domain.UserProfileUpdateReq) error {
 	if req.Name != nil {
 		if len(*req.Name) > 64 {
-			return domain.ErrInvalidName
+			return ErrInvalidName
 		}
 	}
 
@@ -166,7 +176,7 @@ func updateProfileValidation(req domain.UserProfileUpdateReq) error {
 
 	if req.BDay != nil {
 		if !validators.BDayValidation(*req.BDay) {
-			return domain.ErrInvalidBDay
+			return ErrInvalidBDay
 		}
 	}
 
@@ -176,7 +186,7 @@ func updateProfileValidation(req domain.UserProfileUpdateReq) error {
 			return err
 		}
 		if !phoneValid {
-			return domain.ErrInvalidPhone
+			return ErrInvalidPhone
 		}
 	}
 	return nil
