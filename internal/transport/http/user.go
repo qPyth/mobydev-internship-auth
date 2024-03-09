@@ -52,7 +52,6 @@ func (h *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 	var req userSignUpReq
 	if err := h.bindData(r, &req); err != nil {
 		h.log.Error("failed to bind user sign up request: ", "error", err.Error())
-		//TODO:handle error
 		h.error(w, http.StatusBadRequest, err)
 		return
 	}
