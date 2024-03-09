@@ -13,7 +13,7 @@ func (h *Handler) InitUserRoutes(r chi.Router) {
 	r.Route("/user", func(r chi.Router) {
 		r.Post("/signup", h.SignUp)
 		r.Post("/signin", h.SignIn)
-		r.Post("/profile/update", h.UserProfileUpdate)
+		r.With(h.JWTAuthMiddleware).Post("/profile/update", h.UserProfileUpdate)
 	})
 }
 
@@ -47,11 +47,13 @@ func (h *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	var req userSignUpReq
 	if err := h.bindData(r, &req); err != nil {
+		h.log.Error("failed to bind user sign up request: ", "error", err.Error())
 		//TODO:handle error
 		h.error(w, http.StatusBadRequest, err)
 		return
 	}
 	if err := userSignUpReqValidation(req); err != nil {
+		h.log.Error("failed to validate user sign up request: ", "error", err.Error())
 		if errors.Is(err, ErrInvalidEmail) || errors.Is(err, ErrInvalidPassword) {
 			h.error(w, http.StatusBadRequest, err)
 			return
@@ -60,11 +62,13 @@ func (h *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.userService.SignUp(ctx, req.Email, req.Password); err != nil {
+		h.log.Error("failed to sign up user: ", "error", err.Error())
 		if errors.Is(err, domain.ErrEmailExists) {
 			h.error(w, http.StatusBadRequest, err)
 			return
 		}
 		h.error(w, http.StatusInternalServerError, internalSrvErrorMsg)
+		return
 	}
 	_, err := w.Write([]byte("ok"))
 	if err != nil {
@@ -96,11 +100,23 @@ func (h *Handler) UserProfileUpdate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	var req domain.UserProfileUpdateReq
 	if err := h.bindData(r, &req); err != nil {
+		h.log.Error("failed to bind user profile update request: ", "error", err.Error())
 		h.error(w, http.StatusBadRequest, err)
 		return
 	}
-	err := h.userService.UpdateUserProfile(ctx, req)
+	err := updateProfileValidation(req)
 	if err != nil {
+		h.log.Error("failed to validate user profile update request: ", "error", err.Error())
+		if errors.Is(err, domain.ErrInvalidName) || errors.Is(err, domain.ErrInvalidBDay) || errors.Is(err, domain.ErrInvalidPhone) || errors.Is(err, ErrInvalidEmail) {
+			h.error(w, http.StatusBadRequest, err)
+			return
+		}
+		h.error(w, http.StatusInternalServerError, internalSrvErrorMsg)
+		return
+	}
+	err = h.userService.UpdateUserProfile(ctx, req)
+	if err != nil {
+		h.log.Error("failed to update user profile: ", "error", err.Error())
 		if errors.Is(err, domain.ErrUserNotFound) {
 			h.error(w, http.StatusBadRequest, err)
 			return
@@ -128,5 +144,40 @@ func userSignUpReqValidation(req userSignUpReq) error {
 		return ErrInvalidPassword
 	}
 
+	return nil
+}
+
+func updateProfileValidation(req domain.UserProfileUpdateReq) error {
+	if req.Name != nil {
+		if len(*req.Name) > 64 {
+			return domain.ErrInvalidName
+		}
+	}
+
+	if req.Email != nil {
+		emailValid, err := validators.EmailIsValid(*req.Email)
+		if err != nil {
+			return err
+		}
+		if !emailValid {
+			return ErrInvalidEmail
+		}
+	}
+
+	if req.BDay != nil {
+		if !validators.BDayValidation(*req.BDay) {
+			return domain.ErrInvalidBDay
+		}
+	}
+
+	if req.PhoneNumber != nil {
+		phoneValid, err := validators.PhoneE164Validation(*req.PhoneNumber)
+		if err != nil {
+			return err
+		}
+		if !phoneValid {
+			return domain.ErrInvalidPhone
+		}
+	}
 	return nil
 }

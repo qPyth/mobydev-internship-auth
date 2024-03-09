@@ -9,16 +9,19 @@ import (
 	"github.com/qPyth/mobydev-internship-auth/internal/services"
 	"github.com/qPyth/mobydev-internship-auth/internal/storage/sqlite"
 	"github.com/qPyth/mobydev-internship-auth/internal/transport/http"
+	"github.com/qPyth/mobydev-internship-auth/pkg/auth"
 	"log/slog"
 	"os"
 )
+
+var jwtSecret = os.Getenv("JWT_SECRET")
 
 func Run(cfg *config.Config) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	storage := sqlite.New(cfg.StoragePath)
-
-	userService := services.NewUserService(storage)
+	tokenManager := auth.NewManager(jwtSecret, cfg.TokenTTL)
+	userService := services.NewUserService(storage, tokenManager)
 
 	h := http.NewHandler(logger, userService)
 

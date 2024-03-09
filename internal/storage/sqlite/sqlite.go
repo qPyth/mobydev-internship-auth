@@ -8,10 +8,10 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite"
 	"github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/qPyth/mobydev-internship-auth/internal/domain"
 	"strings"
-
-	_ "github.com/mattn/go-sqlite3"
+	"time"
 )
 
 var (
@@ -56,12 +56,12 @@ func migrateDB(db *sql.DB) error {
 // CreateUser creates a new user, returns domain.ErrEmailExists if user with such email already exists
 func (s *Storage) CreateUser(ctx context.Context, email string, hashPass []byte) error {
 	op := "sqlite.CreateUser"
-
-	stmt, err := s.db.Prepare("INSERT INTO users(email, password) VALUES(?, ?)")
+	now := time.Now()
+	stmt, err := s.db.Prepare("INSERT INTO users(email, password, created_at, updated_at) VALUES(?, ?, ?,?)")
 	if err != nil {
 		return fmt.Errorf("%s: db.Prepare: %w", op, err)
 	}
-	_, err = stmt.ExecContext(ctx, email, hashPass)
+	_, err = stmt.ExecContext(ctx, email, string(hashPass), now, now)
 	if err != nil {
 		var sqliteErr sqlite3.Error
 		if errors.As(err, &sqliteErr) && errors.Is(sqliteErr, sqlite3.ErrConstraintUnique) {
@@ -90,14 +90,14 @@ func (s *Storage) GetUser(ctx context.Context, email string) (domain.User, error
 }
 
 // UpdateUser updates user profile. Returns domain.ErrUserNotFound if user not found
-func (s *Storage) UpdateUser(ctx context.Context, userID uint, update *domain.UserProfileUpdateReq) error {
+func (s *Storage) UpdateUser(ctx context.Context, update *domain.UserProfileUpdateReq) error {
 	op := "sqlite.UpdateUser"
-	row := s.db.QueryRowContext(ctx, "SELECT id FROM users WHERE id = ?", userID)
+	row := s.db.QueryRowContext(ctx, "SELECT id FROM users WHERE id = ?", update.ID)
 	var id uint
 	err := row.Scan(&id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("user with id %d not found", domain.ErrUserNotFound)
+			return fmt.Errorf("%s: %w", op, domain.ErrUserNotFound)
 		}
 		return fmt.Errorf("%s: %w", op, err)
 	}
@@ -117,7 +117,7 @@ func (s *Storage) UpdateUser(ctx context.Context, userID uint, update *domain.Us
 	}
 
 	if update.BDay != nil {
-		queryBuilder.WriteString("birthdate = ?, ")
+		queryBuilder.WriteString("b_day = ?, ")
 		args = append(args, *update.BDay)
 	}
 	if update.PhoneNumber != nil {
@@ -128,7 +128,7 @@ func (s *Storage) UpdateUser(ctx context.Context, userID uint, update *domain.Us
 	query := strings.TrimSuffix(queryBuilder.String(), ", ")
 
 	query += " WHERE id = ?"
-	args = append(args, userID)
+	args = append(args, update.ID)
 
 	_, err = s.db.ExecContext(ctx, query, args...)
 	if err != nil {
