@@ -5,13 +5,16 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite"
 	"github.com/mattn/go-sqlite3"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/qPyth/mobydev-internship-auth/internal/domain"
-	"strings"
-	"time"
 )
 
 var (
@@ -23,12 +26,21 @@ type Storage struct {
 }
 
 func New(storagePath string) *Storage {
-	const op = "sqlite.New"
+
+	if _, err := os.Stat(filepath.Dir(storagePath)); os.IsNotExist(err) {
+		if err := os.MkdirAll(filepath.Dir(storagePath), 0755); err != nil {
+			panic("failed to create storage directory: " + err.Error())
+		}
+	}
+
 	db, err := sql.Open("sqlite3", storagePath)
 	if err != nil {
 		panic("failed to open db: " + err.Error())
 	}
 	err = migrateDB(db)
+	if err != nil {
+		panic("migrations failed " + err.Error())
+	}
 	return &Storage{db: db}
 }
 
