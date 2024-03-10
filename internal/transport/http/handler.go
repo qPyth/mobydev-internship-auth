@@ -3,6 +3,7 @@ package http
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"log/slog"
@@ -35,8 +36,10 @@ func (h *Handler) Init() *chi.Mux {
 }
 
 func (h *Handler) bindData(r *http.Request, data interface{}) error {
-	if err := json.NewDecoder(r.Body).Decode(data); err != nil {
-		return err
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(data); err != nil {
+		return fmt.Errorf("failed to decode request: %w", err)
 	}
 	return nil
 }

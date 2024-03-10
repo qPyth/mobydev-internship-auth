@@ -14,7 +14,7 @@ type User struct {
 }
 
 type UserProfileUpdateReq struct {
-	ID          uint       `json:"id"`
+	ID          uint
 	Name        *string    `json:"name"`
 	Email       *string    `json:"email"`
 	PhoneNumber *string    `json:"phone_number"`
