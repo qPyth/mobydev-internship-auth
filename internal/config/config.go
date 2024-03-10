@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/joho/godotenv"
 	"os"
 	"time"
 )
@@ -31,11 +32,15 @@ func Load() *Config {
 		cfgPath = "./config/local.yaml"
 	}
 
+	err := godotenv.Load(".env")
+	if err != nil {
+		panic("Error loading .env file" + err.Error())
+	}
 	if _, err := os.Stat(cfgPath); errors.Is(err, os.ErrNotExist) {
 		panic("config file is not exists in: " + cfgPath)
 	}
 	var cfg Config
-	err := cleanenv.ReadConfig(cfgPath, &cfg)
+	err = cleanenv.ReadConfig(cfgPath, &cfg)
 	if err != nil {
 		panic(err)
 	}

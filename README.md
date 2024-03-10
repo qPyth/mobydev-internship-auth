@@ -41,6 +41,11 @@ To run the application, use the `make run` command from the root directory of th
 make run
 ```
 
+or you can run the app with docker using the following command:
+
+```bash
+make docker-build && make docker-run
+```
 
 This command compiles the Go application and starts the server on the default port.
 
@@ -50,4 +55,4 @@ The application exposes the following endpoints:
 
 - `POST /user/signup`: Register a new user. Requires a JSON body with `email`, `password` and `pass_conf` fields.
 - `POST /user/signin`: Authenticate a user. Requires a JSON body with `email` and `password`. Returns a JWT token upon successful authentication.
-- `PUT /user/profile/update`: Update an existing user's profile. Requires a JWT token for authorization and a JSON body with fields you want to update. `b-day must be in RFC3339` format
+- `POST /user/profile/update`: Update an existing user's profile. Requires a JWT token for authorization and a JSON body with fields you want to update. `b-day must be in RFC3339` format

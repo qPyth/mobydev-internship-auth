@@ -16,13 +16,12 @@ import (
 	"time"
 )
 
-var jwtSecret = os.Getenv("JWT_SECRET")
-
 func Run(cfg *config.Config) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	storage := sqlite.New(cfg.StoragePath)
 
+	jwtSecret := os.Getenv("JWT_SECRET")
 	tokenManager := auth.NewManager(jwtSecret, cfg.TokenTTL)
 
 	userService := services.NewUserService(storage, tokenManager)
